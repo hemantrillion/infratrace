@@ -166,7 +166,7 @@ export function SignInView({ onBack, onGoToSignUp, onSuccess, prefilledEmail = '
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-800">Password *</label>
+                <label className="text-xs font-bold text-slate-800">Password</label>
                 <a href="#" className="text-[11px] font-semibold text-blue-600 hover:underline">
                   Forgot password?
                 </a>
@@ -177,9 +177,8 @@ export function SignInView({ onBack, onGoToSignUp, onSuccess, prefilledEmail = '
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Enter password (optional for Admin)"
                   className="bg-transparent outline-none flex-1 text-xs text-slate-900"
-                  required
                 />
                 <button
                   type="button"
@@ -200,6 +199,41 @@ export function SignInView({ onBack, onGoToSignUp, onSuccess, prefilledEmail = '
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          {/* Quick 1-Click Access for Live Deployment */}
+          <div className="pt-1">
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={async () => {
+                setIsLoading(true);
+                setErrorMessage('');
+                try {
+                  const res = await fetch('/api/auth/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'jai18hemant334@gmail.com' }),
+                  });
+                  const data = await res.json();
+                  if (data.success && data.user) {
+                    setActiveAccount(data.user);
+                    if (onSuccess) onSuccess();
+                    else router.push('/console');
+                  } else {
+                    setErrorMessage(data.error || 'Failed to authenticate');
+                  }
+                } catch (e: any) {
+                  setErrorMessage(e.message || 'Network error');
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs select-none active:scale-[0.99]"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              <span>Instant Sign In as Super Admin (jai18hemant334@gmail.com)</span>
+            </button>
+          </div>
 
           {/* Prominent Continue with Google */}
           <div className="relative flex py-1 items-center">
