@@ -12,9 +12,7 @@ interface GoogleAuthButtonProps {
   disabled?: boolean;
 }
 
-const GOOGLE_CLIENT_ID =
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-  '1002309612117-pk9vf42asi782km54k6kagmmrc3h931s.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 export function GoogleAuthButton({
   onSuccess,

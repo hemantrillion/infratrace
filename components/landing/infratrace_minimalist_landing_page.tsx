@@ -35,9 +35,7 @@ export function InfratraceMinimalistLandingPage({
   const [isStartingEnv, setIsStartingEnv] = useState(false);
   const [pendingRoute, setPendingRoute] = useState<string>('/console');
 
-  const GOOGLE_CLIENT_ID =
-    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-    '1002309612117-pk9vf42asi782km54k6kagmmrc3h931s.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
   // Check login state on mount & synchronize with server cookie session + browser Google identity
   useEffect(() => {

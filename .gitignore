@@ -1,6 +1,7 @@
 # Dependencies (exceeds GitHub 100MB file limit)
 node_modules/
 .next/
+*.tsbuildinfo
 
 # Local environment secrets (blocked by GitHub Push Protection)
 .env.local
