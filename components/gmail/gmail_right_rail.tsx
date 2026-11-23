@@ -5,9 +5,10 @@ import { Plus, ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface GmailRightRailProps {
   hasWallpaper?: boolean;
+  allowedIcons?: string[];
 }
 
-export function GmailRightRail({ hasWallpaper = false }: GmailRightRailProps) {
+export function GmailRightRail({ hasWallpaper = false, allowedIcons = ['calendar'] }: GmailRightRailProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (isCollapsed) {
@@ -47,7 +48,8 @@ export function GmailRightRail({ hasWallpaper = false }: GmailRightRailProps) {
           </div>
         </button>
 
-        {/* Google Keep */}
+        {allowedIcons.includes('keep') && (
+        /* Google Keep */
         <button
           title="Keep"
           className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer group ${
@@ -60,8 +62,10 @@ export function GmailRightRail({ hasWallpaper = false }: GmailRightRailProps) {
             </svg>
           </div>
         </button>
+        )}
 
-        {/* Google Tasks */}
+        {allowedIcons.includes('tasks') && (
+        /* Google Tasks */
         <button
           title="Tasks"
           className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer group ${
@@ -77,8 +81,10 @@ export function GmailRightRail({ hasWallpaper = false }: GmailRightRailProps) {
             </svg>
           </div>
         </button>
+        )}
 
-        {/* Google Contacts */}
+        {allowedIcons.includes('contacts') && (
+        /* Google Contacts */
         <button
           title="Contacts"
           className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer group ${
@@ -91,6 +97,7 @@ export function GmailRightRail({ hasWallpaper = false }: GmailRightRailProps) {
             </svg>
           </div>
         </button>
+        )}
 
         {/* Divider */}
         <div

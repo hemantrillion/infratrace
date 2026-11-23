@@ -3,7 +3,7 @@
 import React from 'react';
 import { MonitoredServiceRecord } from '@/lib/database/get_all_monitored_services_query';
 import { ViewServiceDetailButtonOnCard } from '../buttons/view_service_detail_button_on_card';
-import { Globe, Server, Cloud } from 'lucide-react';
+import { Globe, Server, Cloud, Lock } from 'lucide-react';
 
 interface MonitoredServiceStatusBlockCardProps {
   service: MonitoredServiceRecord;
@@ -25,6 +25,8 @@ export function MonitoredServiceStatusBlockCard({
         return <Cloud className="w-3.5 h-3.5 text-blue-600" />;
       case 'system_process':
         return <Server className="w-3.5 h-3.5 text-purple-600" />;
+      case 'private_api':
+        return <Lock className="w-3.5 h-3.5 text-indigo-600" />;
       default:
         return <Globe className="w-3.5 h-3.5 text-emerald-600" />;
     }

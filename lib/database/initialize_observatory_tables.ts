@@ -16,7 +16,8 @@ export function initializeObservatoryTables(): void {
       uptime_percentage REAL DEFAULT 100.0,
       total_checks INTEGER DEFAULT 0,
       failed_checks INTEGER DEFAULT 0,
-      last_checked_at TEXT
+      last_checked_at TEXT,
+      service_category TEXT
     );
 
     CREATE TABLE IF NOT EXISTS metric_samples (
@@ -209,6 +210,7 @@ export function initializeObservatoryTables(): void {
   try { db.exec('ALTER TABLE monitored_services ADD COLUMN last_state_change_at TEXT'); } catch (_) {}
   try { db.exec('ALTER TABLE monitored_services ADD COLUMN last_notified_status TEXT'); } catch (_) {}
   try { db.exec('ALTER TABLE monitored_services ADD COLUMN last_notified_at TEXT'); } catch (_) {}
+  try { db.exec('ALTER TABLE monitored_services ADD COLUMN service_category TEXT'); } catch (_) {}
 
   // Safely ensure all columns exist on platform_users for backwards compatibility
   try { db.exec('ALTER TABLE platform_users ADD COLUMN avatar_url TEXT DEFAULT "/infra_trace_logo.png"'); } catch (_) {}
@@ -276,7 +278,7 @@ export function initializeObservatoryTables(): void {
     const catMap = rawCatalog as Record<string, any[]>;
     for (const catKey of Object.keys(catMap)) {
       for (const m of catMap[catKey]) {
-        if (!m.is_api_endpoint) {
+        if (!m.metric?.startsWith('#')) {
           defaultDisabledGraphs.push(m.metric);
         }
       }
@@ -285,13 +287,11 @@ export function initializeObservatoryTables(): void {
     const defaultA2 = {
       users: ['accounts', 'permissions', 'websites', 'roles', 'apikeys', 'audit'],
       console: ['dashboard', 'incidents', 'settings'],
-      mail: ['inbox', 'starred', 'snoozed', 'sent', 'drafts'],
+      mail: ['inbox', 'starred'],
       inspect: ['traces', 'probes', 'latency', 'audits', 'payload'],
-      delivery: ['pipelines', 'rules', 'channels', 'sla', 'dlq'],
-      metrics: [
-        'Cloud', 'Containers', 'Service', 'Synthetic',
-        'Queues', 'Database', 'Security', 'Infrastructure'
-      ],
+      delivery: ['pipelines'],
+      side_rail: ['calendar'],
+      metrics: ['Database', 'Queues', 'Security', 'Service', 'Synthetic'],
       disabled_graphs: defaultDisabledGraphs,
     };
     insertVis.run(
@@ -313,16 +313,8 @@ export function initializeObservatoryTables(): void {
       'Normal User',
       JSON.stringify(['chat', 'mail', 'metrics', 'inspect', 'delivery']),
       JSON.stringify({
+        ...defaultA2,
         users: [],
-        console: ['dashboard', 'incidents', 'settings'],
-        mail: ['inbox', 'starred', 'snoozed', 'sent', 'drafts'],
-        inspect: ['traces', 'probes', 'latency', 'audits', 'payload'],
-        delivery: ['pipelines', 'rules', 'channels', 'sla', 'dlq'],
-        metrics: [
-          'Cloud', 'Containers', 'Service', 'Synthetic',
-          'Queues', 'Database', 'Security', 'Infrastructure'
-        ],
-        disabled_graphs: defaultDisabledGraphs,
       }),
       now
     );

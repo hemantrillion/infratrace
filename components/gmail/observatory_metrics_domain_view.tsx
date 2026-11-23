@@ -53,8 +53,8 @@ export function ObservatoryMetricsDomainView({
   // Category Metadata from Excel Catalogue
   const meta = useMemo(() => getCategoryMetadata(activeCategory), [activeCategory]);
 
-  // Active sub-tab state (e.g. AWS, Azure, Cloud Foundry, GCP)
-  const defaultTab = meta.tabs[0]?.id || 'aws';
+  // Active sub-tab state
+  const defaultTab = meta.tabs[0]?.id || 'all';
   const [activeTabId, setActiveTabId] = useState<string>(activeSuboption || defaultTab);
 
   // Set of actively monitored IDs from database

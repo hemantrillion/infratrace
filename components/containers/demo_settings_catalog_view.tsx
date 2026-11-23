@@ -2,26 +2,21 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  Check,
-  Lock,
   Globe,
   Radio,
   RefreshCw,
   Clock,
-  AlertCircle,
-  X,
-  LineChart,
   Play,
   Activity,
-  Code2,
-  ChevronDown,
-  ChevronUp,
   Layers,
   Sparkles,
+  Info,
+  Check,
+  X,
+  ExternalLink,
 } from 'lucide-react';
-import { PREMADE_APIS_CATALOG, PremadeApiItem } from '@/lib/catalog/premade_apis_catalog';
+import { PUBLIC_28_APIS, Public28ApiItem } from '@/lib/catalog/public_28_apis';
 import { MonitoredServiceRecord } from '@/lib/database/get_all_monitored_services_query';
-import { IMPLEMENTED_METRICS, ImplementedMetricDefinition } from '@/lib/metrics/implemented_metrics_registry';
 
 interface DemoSettingsCatalogViewProps {
   monitoredServices: MonitoredServiceRecord[];
@@ -35,11 +30,6 @@ interface DemoSettingsCatalogViewProps {
   onInspectService?: (serviceId: string) => void;
   searchQuery?: string;
 }
-
-const ALPHABETS = [
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-];
 
 const POLLING_INTERVALS = [
   { label: '5s', value: 5000 },
@@ -57,125 +47,43 @@ export function DemoSettingsCatalogView({
   onToggleConstantPolling,
   constantPollingInterval,
   onChangeConstantPollingInterval = () => {},
-  onInspectService,
   searchQuery: externalSearchQuery = '',
 }: DemoSettingsCatalogViewProps) {
-  const [activeLetter, setActiveLetter] = useState<string | null>(null);
   const [togglingServiceId, setTogglingServiceId] = useState<string | null>(null);
-  const [unselectableTooltip, setUnselectableTooltip] = useState<string | null>(null);
+  const [inspectedApi, setInspectedApi] = useState<Public28ApiItem | null>(null);
 
-  // Testing public APIs state (Phase 4 requirement)
-  const [testingMetricId, setTestingMetricId] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<
-    Record<
-      string,
-      {
-        success: boolean;
-        status: number;
-        statusText?: string;
-        latencyMs: number;
-        isOk: boolean;
-        headers?: Record<string, string>;
-        sampleData?: any;
-        error?: string;
-        timestamp: string;
-      }
-    >
-  >({});
-  const [expandedPayloadMetricId, setExpandedPayloadMetricId] = useState<string | null>(null);
+  // Testing public APIs state
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    status: number;
+    latencyMs: number;
+    sampleData?: any;
+    error?: string;
+    timestamp: string;
+  } | null>(null);
 
   // Set of currently monitored service IDs in SQLite database
   const monitoredIdSet = useMemo(() => {
     return new Set(monitoredServices.map((s) => s.id));
   }, [monitoredServices]);
 
-  // List of items in PREMADE_APIS_CATALOG that are currently selected/monitored
-  const selectedItems = useMemo(() => {
-    return PREMADE_APIS_CATALOG.filter((item) => monitoredIdSet.has(item.id));
-  }, [monitoredIdSet]);
-
-  // Filter practical metrics by search query
-  const filteredPracticalMetrics = useMemo(() => {
+  // Filter 28 APIs by search query
+  const filteredApis = useMemo(() => {
     const q = (externalSearchQuery || '').trim().toLowerCase();
-    if (!q) return IMPLEMENTED_METRICS;
-    return IMPLEMENTED_METRICS.filter(
-      (m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.category.toLowerCase().includes(q) ||
-        m.subCategory.toLowerCase().includes(q) ||
-        m.sampleApiName.toLowerCase().includes(q) ||
-        m.sampleApiProvider.toLowerCase().includes(q) ||
-        m.sampleApiUrl.toLowerCase().includes(q) ||
-        m.description.toLowerCase().includes(q)
+    if (!q) return PUBLIC_28_APIS;
+    return PUBLIC_28_APIS.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.company.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.target_url.toLowerCase().includes(q)
     );
   }, [externalSearchQuery]);
 
-  // Test Endpoint execution (Phase 4 requirement)
-  const handleTestEndpoint = async (metric: ImplementedMetricDefinition) => {
-    setTestingMetricId(metric.id);
-    try {
-      const res = await fetch('/api/probe/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: metric.sampleApiUrl }),
-      });
-      const data = await res.json();
-      setTestResults((prev) => ({ ...prev, [metric.id]: data }));
-      setExpandedPayloadMetricId(metric.id);
-    } catch (err: any) {
-      setTestResults((prev) => ({
-        ...prev,
-        [metric.id]: {
-          success: false,
-          status: 0,
-          isOk: false,
-          error: err.message || 'Probe request failed',
-          latencyMs: 0,
-          timestamp: new Date().toISOString(),
-        },
-      }));
-      setExpandedPayloadMetricId(metric.id);
-    } finally {
-      setTestingMetricId(null);
-    }
-  };
-
-  // Toggle practical metric into SQLite monitored_services
-  const handleTogglePracticalMetric = async (metric: ImplementedMetricDefinition) => {
-    setTogglingServiceId(metric.id);
-    try {
-      const isCurrentlyMonitored = monitoredIdSet.has(metric.id);
-      const action = isCurrentlyMonitored ? 'remove' : 'add';
-
-      const response = await fetch('/api/services', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          serviceId: metric.id,
-          service: {
-            id: metric.id,
-            name: metric.name,
-            target_type: 'public_api',
-            target_url: metric.sampleApiUrl,
-            metric_type: metric.id,
-            check_interval_seconds: metric.expectedIntervalSeconds,
-          },
-        }),
-      });
-
-      if (response.ok) {
-        await onServicesUpdated();
-      }
-    } catch (err) {
-      console.error('Failed to toggle practical metric:', err);
-    } finally {
-      setTogglingServiceId(null);
-    }
-  };
-
-  // Handle toggling an API in/out of the test suite
-  const handleToggleService = async (item: PremadeApiItem) => {
+  // Handle toggling an API in/out of the monitored dashboard
+  const handleToggleService = async (item: Public28ApiItem) => {
     setTogglingServiceId(item.id);
     try {
       const response = await fetch('/api/services', {
@@ -203,214 +111,34 @@ export function DemoSettingsCatalogView({
     }
   };
 
-  // Filter catalog items by search query
-  const filteredCatalog = useMemo(() => {
-    const q = (externalSearchQuery || '').trim().toLowerCase();
-    return PREMADE_APIS_CATALOG.filter((item) => {
-      if (!q) return true;
-      return (
-        item.name.toLowerCase().includes(q) ||
-        item.company.toLowerCase().includes(q) ||
-        item.target_url.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.metrics.some((m) => m.name.toLowerCase().includes(q))
-      );
-    });
-  }, [externalSearchQuery]);
-
-  // Group items by alphabet letter
-  const groupedByLetter = useMemo(() => {
-    const map = new Map<string, PremadeApiItem[]>();
-    for (const letter of ALPHABETS) {
-      map.set(letter, []);
+  // Test Endpoint execution via internal probe proxy
+  const handleTestEndpoint = async (item: Public28ApiItem) => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/probe/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: item.target_url }),
+      });
+      const data = await res.json();
+      setTestResult(data);
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        status: 0,
+        error: err.message || 'Probe request failed',
+        latencyMs: 0,
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setIsTesting(false);
     }
-    for (const item of filteredCatalog) {
-      const letter = item.alphabet.toUpperCase();
-      if (!map.has(letter)) {
-        map.set(letter, []);
-      }
-      map.get(letter)!.push(item);
-    }
-    return map;
-  }, [filteredCatalog]);
-
-  // Scroll to alphabet anchor
-  const handleAlphabetClick = (letter: string) => {
-    setActiveLetter(letter);
-    const element = document.getElementById(`catalog-alpha-${letter}`);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  // Render Premade API card
-  const renderApiCard = (item: PremadeApiItem) => {
-    const isMonitored = monitoredIdSet.has(item.id);
-    const isToggling = togglingServiceId === item.id;
-    const isPrivate = item.access_type === 'PRIVATE';
-
-    return (
-      <div
-        key={item.id}
-        className={`rounded-xl border transition-all duration-150 p-4 space-y-3 bg-white shadow-2xs ${
-          isMonitored
-            ? 'border-blue-500/80 ring-1 ring-blue-500/20'
-            : 'border-slate-200/90 hover:border-slate-300'
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-bold uppercase text-slate-500 truncate">
-              {item.company}
-            </span>
-            <span className="text-slate-300 font-bold">&bull;</span>
-            <h3 className="text-sm font-bold text-slate-900 tracking-tight truncate">
-              {item.name}
-            </h3>
-          </div>
-
-          <div className="shrink-0">
-            {isPrivate ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
-                <Lock className="w-2.5 h-2.5" />
-                <span>Private</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <Globe className="w-2.5 h-2.5" />
-                <span>Public</span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-1 bg-slate-50/70 rounded-lg p-2.5 border border-slate-200/60 text-xs">
-          <div className="font-mono font-medium text-slate-800 truncate text-[11px]">
-            {item.target_url}
-          </div>
-          <p className="font-medium text-slate-500 line-clamp-2 text-xs leading-relaxed">
-            {item.description}
-          </p>
-        </div>
-
-        <div className="space-y-1.5 border-t border-slate-100 pt-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">
-              Exposed Metrics
-            </span>
-          </div>
-
-          <div className="space-y-1">
-            {item.metrics.map((metric) => {
-              if (metric.selectable) {
-                return (
-                  <div
-                    key={metric.id}
-                    className={`flex items-center justify-between p-2 rounded-lg border transition-all select-none ${
-                      isMonitored
-                        ? 'bg-blue-50/40 border-blue-200'
-                        : 'border-slate-200/70 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={isMonitored}
-                        onChange={() => handleToggleService(item)}
-                        disabled={isToggling}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 shrink-0"
-                      />
-                      <div className="min-w-0 truncate">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-900 truncate">
-                            {metric.name}
-                          </span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-medium bg-slate-100 text-slate-600 shrink-0">
-                            {metric.unit}
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-
-                    <div className="shrink-0 flex items-center gap-1.5 ml-2">
-                      {isToggling ? (
-                        <RefreshCw className="w-3 h-3 animate-spin text-slate-500" />
-                      ) : isMonitored ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-600 text-white">
-                            <Check className="w-2.5 h-2.5 text-white" />
-                            <span>Active</span>
-                          </span>
-                          {onInspectService && (
-                            <button
-                              type="button"
-                              onClick={() => onInspectService(item.id)}
-                              className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 cursor-pointer transition-colors"
-                              title="Inspect live time-series graph"
-                            >
-                              <LineChart className="w-2.5 h-2.5" />
-                              <span>Graph</span>
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[10px] font-medium uppercase text-slate-400 px-1.5 py-0.5 rounded border border-slate-200">
-                          Include
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={metric.id}
-                  onClick={() =>
-                    setUnselectableTooltip(
-                      `"${metric.name}" cannot be checked directly: Synthetic HTTP probing can only measure response latency. Use Practical Metric Suites above for complete domain metrics.`
-                    )
-                  }
-                  className="flex items-center justify-between p-1.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity cursor-not-allowed select-none text-xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <input
-                      type="checkbox"
-                      disabled
-                      checked={false}
-                      className="w-3.5 h-3.5 rounded text-slate-300 border-slate-300 cursor-not-allowed shrink-0"
-                    />
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="text-xs font-medium text-slate-600 line-through truncate">
-                        {metric.name}
-                      </span>
-                      <span className="text-[10px] px-1 rounded bg-slate-100 font-mono text-slate-500 shrink-0">
-                        {metric.unit}
-                      </span>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] font-medium text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 shrink-0 uppercase ml-2">
-                    Agent Required
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
-    <div className="space-y-6 w-full pb-16 font-sans select-text">
-      {/* 1. DEMO SETTINGS HEADING */}
-      <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-        Demo Settings & Practical Telemetry Catalog
-      </h1>
-
-      {/* Automated Polling Configuration Card */}
+    <div className="space-y-6 pb-12 select-text font-sans">
+      {/* Automated Polling Configuration Card (Reverted to original) */}
       <div className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -469,356 +197,195 @@ export function DemoSettingsCatalogView({
         </div>
       </div>
 
-      {/* 2. PHASE 3 & 4 PRACTICAL TELEMETRY METRIC SUITES & WORKING PUBLIC APIS */}
+      {/* 2. PUBLIC API SECTION */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                Practical Telemetry Metrics & Working Public APIs
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500">
-              Each metric is paired with a real, live public API. Click <strong>Test Endpoint</strong> to verify live network responses and inspect returned payloads.
-            </p>
-          </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            {filteredPracticalMetrics.length} Practical Metrics
-          </span>
+        <div className="pb-1 border-b border-slate-200/80">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight">
+            Public API
+          </h2>
         </div>
 
-        {/* Practical Metric Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredPracticalMetrics.map((metric) => {
-            const isMonitored = monitoredIdSet.has(metric.id);
-            const isToggling = togglingServiceId === metric.id;
-            const isTesting = testingMetricId === metric.id;
-            const testResult = testResults[metric.id];
-            const isPayloadExpanded = expandedPayloadMetricId === metric.id;
+        {/* 28 APIs Grid: Arranged in 4 Columns and 7 Rows */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {filteredApis.map((item) => {
+            const isMonitored = monitoredIdSet.has(item.id);
+            const isToggling = togglingServiceId === item.id;
 
             return (
               <div
-                key={metric.id}
-                className={`rounded-2xl border transition-all duration-150 p-4 space-y-3 bg-white shadow-2xs ${
+                key={item.id}
+                className={`p-3.5 rounded-xl border bg-white flex flex-col justify-between gap-3 transition-all duration-150 ${
                   isMonitored
-                    ? 'border-blue-500 ring-1 ring-blue-500/20'
-                    : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-blue-500 ring-1 ring-blue-500/20 shadow-xs'
+                    : 'border-slate-200/90 hover:border-slate-300 shadow-2xs'
                 }`}
               >
-                {/* Header: Title, Category & Unit */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                        {metric.category} &bull; {metric.subCategory}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded font-mono text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                        Unit: {metric.unit}
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-bold text-slate-900 truncate">
-                      {metric.name}
-                    </h3>
-                  </div>
-
-                  <div className="shrink-0 flex items-center gap-1.5">
-                    {/* Toggle into Active Monitoring */}
-                    <button
-                      type="button"
-                      onClick={() => handleTogglePracticalMetric(metric)}
-                      disabled={isToggling}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        isMonitored
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {isToggling ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : isMonitored ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Monitored</span>
-                        </>
-                      ) : (
-                        <span>+ Add to Suite</span>
-                      )}
-                    </button>
-                  </div>
+                {/* Top: Name & Company (No dots, No ticks) */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
+                    {item.company}
+                  </span>
+                  <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={item.name}>
+                    {item.name}
+                  </h4>
                 </div>
 
-                {/* Description */}
-                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                  {metric.description}
-                </p>
-
-                {/* Target URL & Provider Details */}
-                <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-200/80 space-y-1 text-xs">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="font-semibold text-slate-700">{metric.sampleApiProvider}</span>
-                    <span className="font-mono">{metric.expectedIntervalSeconds}s cadence</span>
-                  </div>
-                  <div className="font-mono text-[11px] text-blue-700 truncate">
-                    {metric.sampleApiUrl}
-                  </div>
-                </div>
-
-                {/* Test Endpoint Action & Results */}
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                {/* Bottom: Options (Plain text Added / Add to Dashboard, No ticks, No icons in add button) */}
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => handleTestEndpoint(metric)}
-                    disabled={isTesting}
-                    className="px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                    onClick={() => handleToggleService(item)}
+                    disabled={isToggling}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all flex items-center justify-center cursor-pointer border ${
+                      isMonitored
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300 shadow-2xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-2xs hover:border-slate-400'
+                    }`}
                   >
-                    {isTesting ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                    {isToggling ? (
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                    ) : isMonitored ? (
+                      <span>Added</span>
                     ) : (
-                      <Play className="w-3.5 h-3.5 text-blue-600 fill-blue-600" />
+                      <span>Add to Dashboard</span>
                     )}
-                    <span>{isTesting ? 'Sending Probe...' : 'Test Endpoint'}</span>
                   </button>
 
-                  {/* Test Result Pill */}
-                  {testResult && (
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                          testResult.isOk
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}
-                      >
-                        {testResult.status > 0 ? `${testResult.status} ${testResult.statusText || 'OK'}` : 'TIMEOUT/ERR'}
-                      </span>
-                      <span className="text-[11px] font-mono font-bold text-slate-600">
-                        {testResult.latencyMs}ms
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedPayloadMetricId(isPayloadExpanded ? null : metric.id)
-                        }
-                        className="p-1 rounded hover:bg-slate-100 text-slate-500 cursor-pointer"
-                        title="Toggle response payload inspection"
-                      >
-                        {isPayloadExpanded ? (
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Link to Inspect Graph if monitored */}
-                  {isMonitored && onInspectService && (
-                    <button
-                      type="button"
-                      onClick={() => onInspectService(metric.id)}
-                      className="px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-700 hover:bg-blue-50 flex items-center gap-1 cursor-pointer transition-colors ml-auto"
-                    >
-                      <LineChart className="w-3.5 h-3.5" />
-                      <span>Graph</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectedApi(item);
+                      setTestResult(null);
+                    }}
+                    title="Inspect Endpoint Details"
+                    className="py-1.5 px-2.5 rounded-lg text-[11px] font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors flex items-center gap-1 cursor-pointer shrink-0 border border-blue-200/60"
+                  >
+                    <Info className="w-3 h-3" />
+                    <span>Inspect</span>
+                  </button>
                 </div>
-
-                {/* Expandable Live Response Data Inspector */}
-                {testResult && isPayloadExpanded && (
-                  <div className="p-3 bg-slate-900 text-slate-100 rounded-xl space-y-2 text-[11px] font-mono animate-in fade-in">
-                    <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
-                      <span>Live Response Payload ({testResult.timestamp.split('T')[1].slice(0, 8)})</span>
-                      <span>{testResult.latencyMs}ms roundtrip</span>
-                    </div>
-
-                    {testResult.error ? (
-                      <div className="text-rose-400">{testResult.error}</div>
-                    ) : (
-                      <>
-                        {testResult.headers && (
-                          <div className="text-[10px] text-slate-400 space-y-0.5">
-                            <div>Content-Type: {testResult.headers['content-type'] || 'n/a'}</div>
-                            {testResult.headers['server'] && <div>Server: {testResult.headers['server']}</div>}
-                          </div>
-                        )}
-                        <pre className="max-h-36 overflow-auto bg-black/40 p-2 rounded text-[10px] text-emerald-400 scrollbar-thin">
-                          {typeof testResult.sampleData === 'object'
-                            ? JSON.stringify(testResult.sampleData, null, 2)
-                            : String(testResult.sampleData || 'No response body')}
-                        </pre>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* 3. PUBLIC API CATALOG SECTION (General Alphabetical Directory) */}
-      <div className="pt-6 border-t border-slate-200/80 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Premade Public API Directory (A–Z)
-            </h2>
-            <p className="text-xs text-slate-500">
-              Complete alphabetical library of monitored cloud endpoints and distributed microservices.
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-slate-500">
-            {selectedItems.length} active in telemetry suite
-          </span>
-        </div>
-
-        {/* Selected APIs Section */}
-        <section id="catalog-selected-section" className="space-y-3 scroll-mt-28">
-          <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Active Suite Services
-              </h3>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                {selectedItems.length} selected
-              </span>
-            </div>
-            {selectedItems.length > 0 && (
-              <span className="text-xs text-slate-400 font-medium">
-                Uncheck any API to remove from telemetry suite
-              </span>
-            )}
-          </div>
-
-          {selectedItems.length === 0 ? (
-            <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-white text-center text-xs text-slate-500 font-medium">
-              No APIs currently selected. Select APIs from above or the catalog below to add them to your active monitoring suite.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {selectedItems.map((item) => renderApiCard(item))}
-            </div>
-          )}
-        </section>
-
-        {/* ALPHABET JUMP BAR */}
-        <div className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-2xs sticky top-0 z-20">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
+      {/* ======================================================== */}
+      {/* 3. INSPECT DETAIL MODAL (MATCHING IMAGE 2 EXACTLY)       */}
+      {/* ======================================================== */}
+      {inspectedApi && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-xl w-full p-5 space-y-4 shadow-xl relative animate-in fade-in zoom-in-95 duration-150">
+            {/* Close Button */}
             <button
               type="button"
               onClick={() => {
-                setActiveLetter(null);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setInspectedApi(null);
+                setTestResult(null);
               }}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                activeLetter === null
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              ALL
-            </button>
-
-            {ALPHABETS.map((letter) => {
-              const count = groupedByLetter.get(letter)?.length || 0;
-              const isSelected = activeLetter === letter;
-
-              return (
-                <button
-                  key={letter}
-                  type="button"
-                  onClick={() => handleAlphabetClick(letter)}
-                  disabled={count === 0}
-                  className={`min-w-8 h-8 px-2 rounded-md text-xs font-bold transition-all shrink-0 flex items-center justify-center cursor-pointer ${
-                    count === 0
-                      ? 'opacity-30 cursor-not-allowed bg-transparent text-slate-400'
-                      : isSelected
-                      ? 'bg-slate-900 text-white font-black shadow-2xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  <span>{letter}</span>
-                </button>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveLetter('SELECTED');
-                const element = document.getElementById('catalog-selected-section');
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                activeLetter === 'SELECTED'
-                  ? 'bg-blue-600 text-white shadow-2xs'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
-              }`}
-            >
-              <span>Selected</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  activeLetter === 'SELECTED'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-blue-200/70 text-blue-900'
-                }`}
-              >
-                {selectedItems.length}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tooltip Alert when user clicks an unselectable metric */}
-        {unselectableTooltip && (
-          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-center justify-between shadow-2xs animate-in fade-in">
-            <div className="flex items-center gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>{unselectableTooltip}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setUnselectableTooltip(null)}
-              className="p-1 hover:bg-amber-100 rounded text-amber-800 cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
-          </div>
-        )}
 
-        {/* Sequential Alphabetical Catalog inside its own Box */}
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-2xs space-y-8">
-          {ALPHABETS.map((letter) => {
-            const items = groupedByLetter.get(letter) || [];
-            if (items.length === 0) return null;
+            {/* Badges: Category & Unit */}
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                {inspectedApi.category} &bull; {inspectedApi.subCategory}
+              </span>
+              <span className="px-1.5 py-0.5 rounded font-mono text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                Unit: {inspectedApi.unit}
+              </span>
+            </div>
 
-            return (
-              <section
-                key={letter}
-                id={`catalog-alpha-${letter}`}
-                className="space-y-3 scroll-mt-28"
+            {/* Title & Description */}
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                {inspectedApi.name}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {inspectedApi.description}
+              </p>
+            </div>
+
+            {/* Target URL Box (Like Image 2) */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/90 space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                <span>{inspectedApi.company}</span>
+                <span className="font-mono text-[10px] text-slate-400">{inspectedApi.cadence}</span>
+              </div>
+              <div className="font-mono text-xs text-blue-700 break-all select-all font-medium">
+                {inspectedApi.target_url}
+              </div>
+            </div>
+
+            {/* Test Endpoint Action & Results */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => handleTestEndpoint(inspectedApi)}
+                  disabled={isTesting}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                >
+                  {isTesting ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5 fill-slate-800" />
+                  )}
+                  <span>Test Endpoint</span>
+                </button>
+
+                {testResult && (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                        testResult.status >= 200 && testResult.status < 400
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}
+                    >
+                      {testResult.status > 0 ? `${testResult.status} ${testResult.status === 200 ? 'OK' : ''}` : 'Failed'}
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-slate-500">
+                      {testResult.latencyMs}ms
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {testResult && (
+                <div className="p-3 rounded-xl bg-slate-900 text-slate-100 font-mono text-[10px] space-y-1 overflow-x-auto max-h-48 scrollbar-thin">
+                  <div className="text-slate-400">Response Payload / Details:</div>
+                  <pre className="text-emerald-400 whitespace-pre-wrap">
+                    {testResult.sampleData
+                      ? JSON.stringify(testResult.sampleData, null, 2)
+                      : testResult.error || 'No body returned'}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Footer: Add to Dashboard toggle */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                {monitoredIdSet.has(inspectedApi.id) ? 'Currently monitored on Dashboard' : 'Not added to Dashboard'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleToggleService(inspectedApi)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  monitoredIdSet.has(inspectedApi.id)
+                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                    : 'bg-black text-white hover:bg-slate-800 shadow-xs'
+                }`}
               >
-                <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                    {letter}
-                  </h3>
-                  <span className="text-xs font-semibold text-slate-400">
-                    {items.length} {items.length === 1 ? 'API' : 'APIs'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  {items.map((item) => renderApiCard(item))}
-                </div>
-              </section>
-            );
-          })}
+                {monitoredIdSet.has(inspectedApi.id) ? 'Remove from Dashboard' : 'Add to Dashboard'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

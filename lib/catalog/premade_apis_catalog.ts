@@ -20,6 +20,34 @@ export interface PremadeApiItem {
 }
 
 export const PREMADE_APIS_CATALOG: PremadeApiItem[] = [
+  {
+    id: 'openweather_api',
+    alphabet: 'O',
+    name: 'OpenWeather Current Weather API',
+    company: 'OpenWeatherMap',
+    target_url: 'https://api.openweathermap.org/data/2.5/weather',
+    target_type: 'public_api',
+    access_type: 'PRIVATE',
+    category: 'Weather & Climate',
+    description: 'Real-time global weather data API requiring private API key authentication.',
+    metrics: [
+      { id: 'latency', name: 'Response Time / Latency', unit: 'ms', selectable: true, description: 'Direct API probe latency' },
+    ],
+  },
+  {
+    id: 'gemini_api',
+    alphabet: 'G',
+    name: 'Google Gemini 1.5 Flash Model Gateway',
+    company: 'Google AI',
+    target_url: 'https://generativelanguage.googleapis.com/v1beta/models',
+    target_type: 'public_api',
+    access_type: 'PRIVATE',
+    category: 'AI & Machine Learning',
+    description: 'Foundation model inference endpoint requiring private Google AI Studio API key.',
+    metrics: [
+      { id: 'latency', name: 'Response Time / Latency', unit: 'ms', selectable: true, description: 'Direct model token inference round-trip latency' },
+    ],
+  },
   // ===================== A =====================
   {
     id: 'aws_cloudwatch',

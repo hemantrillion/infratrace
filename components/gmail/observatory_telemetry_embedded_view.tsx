@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { SystemOverviewMetricsBarContainer } from '@/components/containers/system_overview_metrics_bar_container';
 import { ChaosTestingControlPanelContainer } from '@/components/containers/chaos_testing_control_panel_container';
 import { ActiveIncidentAlertNotificationCard } from '@/components/cards/active_incident_alert_notification_card';
@@ -14,10 +15,11 @@ import { IncidentAlertRecord } from '@/lib/database/get_all_incidents_history_qu
 import { MetricSampleRecord } from '@/lib/database/get_metric_samples_by_service_query';
 import { DemoSubView, StatusFilter } from './gmail_left_sidebar';
 import { DensityOption } from './gmail_quick_settings_panel';
-import { Cloud, Plus, Heart, Sparkles } from 'lucide-react';
+import { Cloud, Plus, Heart, Sparkles, Trash2 } from 'lucide-react';
 import { MetricTelemetryChartCard } from '@/components/cards/metric_telemetry_chart_card';
 import { MetricCardData } from '@/lib/catalog/metrics_catalogue_provider';
 import { IMPLEMENTED_METRICS } from '@/lib/metrics/implemented_metrics_registry';
+import { PrivateApiPopover } from '@/frontend/box3/private_api_popover';
 
 interface ObservatoryTelemetryEmbeddedViewProps {
   services: MonitoredServiceRecord[];
@@ -66,6 +68,7 @@ export function ObservatoryTelemetryEmbeddedView({
   onSelectDemoSubView,
   onSelectStatusFilter,
 }: ObservatoryTelemetryEmbeddedViewProps) {
+  const router = useRouter();
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<MonitoredServiceRecord | null>(null);
   const [serviceSamples, setServiceSamples] = useState<MetricSampleRecord[]>([]);
@@ -74,6 +77,48 @@ export function ObservatoryTelemetryEmbeddedView({
   const [allIncidents, setAllIncidents] = useState<IncidentAlertRecord[]>([]);
   const [isLoadingIncidents, setIsLoadingIncidents] = useState(false);
   const [favoriteMetricCards, setFavoriteMetricCards] = useState<MetricCardData[]>([]);
+  const [isPrivatePopoverOpen, setIsPrivatePopoverOpen] = useState(false);
+  const [privateSuites, setPrivateSuites] = useState<any[]>([]);
+  const [isDeletingSuiteId, setIsDeletingSuiteId] = useState<string | null>(null);
+
+  // Load user's private API suites
+  const loadPrivateSuites = useCallback(async () => {
+    try {
+      const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
+      const res = await fetch(`/api/private-api${emailParam}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.suites)) {
+        setPrivateSuites(data.suites);
+      } else {
+        setPrivateSuites([]);
+      }
+    } catch (err) {
+      console.error('Failed to load private suites:', err);
+    }
+  }, [userEmail]);
+
+  useEffect(() => {
+    loadPrivateSuites();
+  }, [loadPrivateSuites, services]);
+
+  const handleDeleteSuite = async (suiteId: string, suiteName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the private suite "${suiteName}" and stop monitoring all its endpoints?`)) return;
+    setIsDeletingSuiteId(suiteId);
+    try {
+      const res = await fetch(`/api/private-api?suiteId=${encodeURIComponent(suiteId)}&email=${encodeURIComponent(userEmail)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadPrivateSuites();
+        await onServicesUpdated();
+      }
+    } catch (err) {
+      console.error('Failed to delete suite:', err);
+    } finally {
+      setIsDeletingSuiteId(null);
+    }
+  };
 
   // Load user's favorited metrics from localStorage (Phase 9 requirement)
   const loadFavorites = useCallback(() => {
@@ -205,6 +250,9 @@ export function ObservatoryTelemetryEmbeddedView({
     return true;
   });
 
+  const privateServices = filteredServices.filter((s) => s.target_type === 'private_api');
+  const publicServices = filteredServices.filter((s) => s.target_type !== 'private_api');
+
   const densitySpacing =
     density === 'compact' ? 'space-y-4 p-4 md:p-6' : density === 'comfortable' ? 'space-y-6 p-6 md:p-8' : 'space-y-8 p-6 md:p-10';
 
@@ -334,21 +382,126 @@ export function ObservatoryTelemetryEmbeddedView({
             </section>
 
 
-            {/* Section: Monitored Targets Grid */}
+            {/* Section: Private API */}
+            <section className="space-y-3.5 w-full relative">
+              <div className="flex items-center justify-between pb-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Private API
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/private-api')}
+                    title="Add New Private API Suite"
+                    className="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer border border-slate-300 shadow-2xs"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Private API Suites Popover */}
+              {isPrivatePopoverOpen && (
+                <div className="relative">
+                  <PrivateApiPopover onClose={() => setIsPrivatePopoverOpen(false)} />
+                </div>
+              )}
+
+              {/* Display Each Created Private API Suite by Name */}
+              {privateSuites.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-500 font-medium border border-slate-200/90 rounded-2xl bg-white shadow-2xs space-y-1">
+                  <p className="font-bold text-slate-800">No private suites yet</p>
+                  <p className="text-[11px] text-slate-400">
+                    Click the <span className="font-bold text-blue-600">+</span> icon above to create your first isolated private API suite.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {privateSuites.map((suite) => {
+                    const suiteServices = privateServices.filter(
+                      (s) => s.service_category === suite.id || s.id.startsWith(`priv_${suite.id}`)
+                    );
+
+                    return (
+                      <div
+                        key={suite.id}
+                        className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs space-y-3.5"
+                      >
+                        {/* Suite Header with Name and Delete Button */}
+                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm font-bold text-slate-900 tracking-tight">
+                              {suite.name}
+                            </span>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {suite.status || 'ACTIVE'}
+                            </span>
+                            <span className="text-xs text-slate-400 font-mono">
+                              {suiteServices.length} {suiteServices.length === 1 ? 'configured API' : 'configured APIs'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/private-api?suiteId=${encodeURIComponent(suite.id)}`)}
+                              className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSuite(suite.id, suite.name)}
+                              disabled={isDeletingSuiteId === suite.id}
+                              className="px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <Trash2 className="w-3 h-3 text-rose-500" />
+                              <span>{isDeletingSuiteId === suite.id ? 'Deleting...' : 'Delete Suite'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Configured APIs inside this Suite */}
+                        {suiteServices.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-slate-400 italic">
+                            No endpoints currently monitored in this suite.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 w-full">
+                            {suiteServices.map((service) => (
+                              <MonitoredServiceStatusBlockCard
+                                key={service.id}
+                                service={service}
+                                onInspect={(id) => {
+                                  setSelectedServiceId(id);
+                                  fetchServiceDetails(id);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Section: Public API Grid */}
             <section className="space-y-2.5 w-full">
               <div className="flex items-center justify-between pb-1">
                 <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                  Test Suite Monitored Targets ({filteredServices.length})
+                  Public API
                 </h2>
               </div>
 
-              {filteredServices.length === 0 ? (
+              {publicServices.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-500 font-medium border border-slate-200/90 rounded-xl bg-white">
                   No monitored targets match the current filter or search criteria. Select APIs in Demo Settings to add them to this dashboard.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                  {filteredServices.map((service) => (
+                  {publicServices.map((service) => (
                     <MonitoredServiceStatusBlockCard
                       key={service.id}
                       service={service}

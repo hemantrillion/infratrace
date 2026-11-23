@@ -11,7 +11,15 @@ const companionProcess = spawn(process.execPath, [companionPath], {
   stdio: 'inherit',
 });
 
-// 2. Start Next.js Development Server (Port 3000)
+// 2. Start Real Booking OQ Application (Port 3001)
+const oqDir = path.resolve(__dirname, '..', '..', 'Booking OQ');
+const targetOqProcess = spawn(npmCmd, ['run', 'dev'], {
+  cwd: oqDir,
+  stdio: 'inherit',
+  shell: isWindows,
+});
+
+// 3. Start Next.js Development Server (Port 3000)
 const isWindows = process.platform === 'win32';
 const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 const nextProcess = spawn(npmCmd, ['run', 'dev'], {
@@ -22,6 +30,7 @@ const nextProcess = spawn(npmCmd, ['run', 'dev'], {
 function cleanup() {
   console.log('\nShutting down Observatory services...');
   companionProcess.kill();
+  targetOqProcess.kill();
   nextProcess.kill();
   process.exit();
 }

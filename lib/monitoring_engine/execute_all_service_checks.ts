@@ -42,13 +42,33 @@ export async function executeAllServiceChecks(): Promise<HealthCheckResult[]> {
       }
 
       try {
-        const response = await fetch(service.target_url, {
-          signal: AbortSignal.timeout(4500),
+        let cleanTargetUrl = service.target_url.trim();
+        let method = 'GET';
+        if (cleanTargetUrl.toUpperCase().startsWith('POST ')) {
+          method = 'POST';
+          cleanTargetUrl = cleanTargetUrl.substring(5).trim();
+        } else if (cleanTargetUrl.toUpperCase().startsWith('GET ')) {
+          method = 'GET';
+          cleanTargetUrl = cleanTargetUrl.substring(4).trim();
+        } else if (cleanTargetUrl.includes(':generateContent')) {
+          method = 'POST';
+        }
+
+        const isPost = method === 'POST';
+        const reqHeaders: Record<string, string> = {
+          'User-Agent': 'InfraTrace-Synthetic-Poller/1.0',
+          Accept: cleanTargetUrl.includes('dns-query') ? 'application/dns-json' : 'application/json, */*',
+        };
+        if (isPost) {
+          reqHeaders['Content-Type'] = 'application/json';
+        }
+
+        const response = await fetch(cleanTargetUrl, {
+          method,
+          body: isPost ? JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] }) : undefined,
+          signal: AbortSignal.timeout(6000),
           cache: 'no-store',
-          headers: {
-            'User-Agent': 'InfraTrace-Synthetic-Poller/1.0',
-            Accept: '*/*',
-          },
+          headers: reqHeaders,
         });
 
         const elapsed = Math.round(performance.now() - startTime);

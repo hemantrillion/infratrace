@@ -9,6 +9,9 @@
     "start": "next start",
     "service": "node controlled_service/server.js"
   },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "dependencies": {
     "clsx": "^2.1.1",
     "lucide-react": "^0.453.0",

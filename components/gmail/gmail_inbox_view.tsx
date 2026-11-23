@@ -202,27 +202,27 @@ export function GmailInboxView({
     const downCount = (phaseState?.down_events_count || 0) + (phaseState?.degraded_events_count || 0);
 
     return (
-      <div className={`flex-1 flex flex-col h-full ${hasWallpaper ? 'bg-transparent' : 'bg-slate-50/70'} overflow-y-auto p-6 font-sans`}>
-        <div className="max-w-5xl mx-auto w-full space-y-6">
+      <div className={`flex-1 flex flex-col h-full ${hasWallpaper ? 'bg-transparent' : 'bg-slate-50/70'} overflow-y-auto p-6 sm:p-8 font-sans`}>
+        <div className="w-full space-y-6 max-w-7xl mx-auto">
 
           {/* Top Control Bar */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div className="flex items-center gap-2.5 mb-1">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     <Clock className="w-4 h-4" />
                   </div>
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight">
+                  <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                     Phases &amp; Rounds Management
                   </h1>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   Adaptive multi-phase observation engine. Multiples of 20 minutes with Fibonacci backoff to prevent email quota fatigue.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
                   onClick={fetchPhases}
@@ -237,7 +237,7 @@ export function GmailInboxView({
                   type="button"
                   onClick={handleResetPhases}
                   disabled={isResettingPhases}
-                  className="px-4 py-2 rounded-xl bg-black hover:bg-slate-800 text-xs font-bold text-white transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-bold text-white transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <span>{isResettingPhases ? 'Resetting...' : 'Reset All Phases to Phase 1'}</span>
                 </button>
@@ -246,57 +246,57 @@ export function GmailInboxView({
 
             {/* Reset Feedback Notification */}
             {resetFeedback && (
-              <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-900 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-900 flex items-center justify-between shadow-2xs">
                 <span>{resetFeedback}</span>
-                <button onClick={() => setResetFeedback(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer text-xs">
+                <button onClick={() => setResetFeedback(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer text-xs font-bold">
                   Dismiss
                 </button>
               </div>
             )}
 
             {/* Current Phase Status Block */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-5">
-              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/60">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-4">
+              <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/80 space-y-1">
                 <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Current Phase</div>
-                <div className="text-base font-black text-slate-900 mt-1">
+                <div className="text-lg font-black text-slate-900">
                   Phase {phaseState?.current_phase_number || 1}
                 </div>
-                <div className="text-[11px] font-medium text-slate-500 mt-0.5 truncate">{stageLabel}</div>
+                <div className="text-[11px] font-medium text-slate-500 truncate">{stageLabel}</div>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/60">
+              <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/80 space-y-1">
                 <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Window Duration</div>
-                <div className="text-base font-black text-slate-900 mt-1">
+                <div className="text-lg font-black text-slate-900">
                   {phaseState?.phase_stage === 'WINDOW_RUNNING' ? `${windowMinutes} minutes` : 'Immediate (Phase 1)'}
                 </div>
-                <div className="text-[11px] font-medium text-slate-500 mt-0.5">Scale multiplier n = {n}</div>
+                <div className="text-[11px] font-medium text-slate-500">Scale multiplier n = {n}</div>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/60">
+              <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/80 space-y-1">
                 <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Observed Probes in Window</div>
-                <div className="text-base font-black text-slate-900 mt-1">
+                <div className="text-lg font-black text-slate-900">
                   {upCount} UP &bull; {downCount} DOWN
                 </div>
-                <div className="text-[11px] font-medium text-slate-500 mt-0.5">Silently recording without notifications</div>
+                <div className="text-[11px] font-medium text-slate-500">Silently recording without notifications</div>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/60">
+              <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/80 space-y-1">
                 <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Unstable Threshold (n = {n})</div>
-                <div className="text-xs font-bold text-slate-800 mt-1">
+                <div className="text-xs font-bold text-slate-800">
                   {2 * n} UP + {1 * n} DOWN or {2 * n} DOWN + {1 * n} UP
                 </div>
-                <div className="text-[11px] font-medium text-purple-700 mt-0.5">Dispatches single Unstable digest</div>
+                <div className="text-[11px] font-medium text-purple-700">Dispatches single Unstable digest</div>
               </div>
             </div>
           </div>
 
           {/* Completed Phases History Log */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-xs">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Completed Phases &amp; Rounds History
               </h2>
-              <span className="text-xs font-semibold text-slate-400">
+              <span className="text-xs font-semibold text-slate-400 font-mono">
                 {phaseHistory.length} recorded rounds
               </span>
             </div>

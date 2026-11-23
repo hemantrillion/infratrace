@@ -137,21 +137,6 @@ export function GmailTopNavbar({
 
       {/* Right: Controls & Profile (Enlarged to match real Gmail dimensions) */}
       <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 pr-1">
-        {/* Toggle Flexbox Boundaries Button: strictly 'Flex' text (Green = ON, Red = OFF) */}
-        {onToggleFlexboxBorders && (
-          <button
-            onClick={onToggleFlexboxBorders}
-            title={showFlexboxBorders ? 'Flex: ON (Green)' : 'Flex: OFF (Red)'}
-            className={`h-10 px-4 rounded-full text-sm font-semibold transition-all cursor-pointer shadow-xs flex items-center justify-center ${
-              showFlexboxBorders
-                ? 'bg-[#188038] text-white hover:bg-[#137333]'
-                : 'bg-[#d93025] text-white hover:bg-[#b3261e]'
-            }`}
-          >
-            Flex
-          </button>
-        )}
-
         {/* Private API Dropdown Trigger & Popover */}
         <div className="relative" ref={privateApiMenuRef}>
           <button

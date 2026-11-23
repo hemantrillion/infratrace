@@ -67,14 +67,11 @@ export function PrivateApiPopover({ onClose, onNavigateToPrivateApi }: PrivateAp
   };
 
   return (
-    <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-3 z-50 animate-in fade-in zoom-in-95 text-slate-900 font-sans select-none">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-100 px-1">
-        <div className="flex items-center gap-1.5">
-          <Layers className="w-3.5 h-3.5 text-blue-600" />
-          <span className="text-xs font-bold text-slate-800">Private API Suites</span>
-        </div>
-        <span className="text-[10px] font-semibold text-slate-500 font-mono">
+    <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200/90 p-3.5 z-50 animate-in fade-in zoom-in-95 text-slate-900 font-sans select-none">
+      {/* Header: No icon before Private API Suites */}
+      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 px-1">
+        <span className="text-xs font-bold text-slate-900 tracking-tight">Private API Suites</span>
+        <span className="text-[10px] font-semibold text-slate-400 font-mono">
           {suites.length} {suites.length === 1 ? 'suite' : 'suites'}
         </span>
       </div>
@@ -87,10 +84,10 @@ export function PrivateApiPopover({ onClose, onNavigateToPrivateApi }: PrivateAp
             <span>Loading suites...</span>
           </div>
         ) : suites.length === 0 ? (
-          <div className="p-3 text-center rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-            <p className="text-xs font-semibold text-slate-700">No private suites yet</p>
-            <p className="text-[11px] text-slate-500">
-              Create an isolated private suite to monitor VPC microservices & custom endpoints.
+          <div className="p-4 text-center rounded-xl bg-slate-50/80 border border-slate-200/70 space-y-1.5 my-1">
+            <p className="text-xs font-bold text-slate-800">No private suites yet</p>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Create an isolated private suite to monitor VPC microservices &amp; custom endpoints.
             </p>
           </div>
         ) : (
@@ -107,7 +104,7 @@ export function PrivateApiPopover({ onClose, onNavigateToPrivateApi }: PrivateAp
               <div
                 key={suite.id}
                 onClick={() => handleSuiteClick(suite.id)}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/60 border border-slate-200/80 hover:border-blue-300 space-y-1 cursor-pointer transition-all group"
+                className="p-2.5 rounded-xl bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 space-y-1 cursor-pointer transition-all group shadow-2xs"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">
@@ -131,11 +128,11 @@ export function PrivateApiPopover({ onClose, onNavigateToPrivateApi }: PrivateAp
       </div>
 
       {/* Add New Private API Button */}
-      <div className="pt-2 border-t border-slate-100">
+      <div className="pt-2.5 border-t border-slate-100">
         <button
           type="button"
           onClick={handleAddNew}
-          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-dashed border-blue-400 bg-blue-50/60 hover:bg-blue-100/80 text-blue-700 text-xs font-bold cursor-pointer transition-colors shadow-2xs"
+          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/40 hover:bg-blue-50 text-blue-700 text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add new private API</span>

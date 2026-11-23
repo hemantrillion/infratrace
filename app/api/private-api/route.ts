@@ -41,8 +41,8 @@ export async function POST(req: Request) {
       userEmail,
       name,
       suiteType = 'cloud_aws',
-      cspProvider = 'AWS',
-      serviceCategory = 'Compute & Telemetry',
+      cspProvider = 'Private Microservices',
+      serviceCategory = 'Private API Test Suite',
       endpoints = [],
     } = body;
 
@@ -68,30 +68,37 @@ export async function POST(req: Request) {
       now
     );
 
-    // Also register endpoints in monitored_services for user
+    // Also register endpoints in monitored_services under target_type = 'private_api'
     const insertMonitored = db.prepare(`
-      INSERT OR REPLACE INTO monitored_services (
+      INSERT INTO monitored_services (
         id, name, target_type, target_url, check_interval_seconds,
         current_status, latest_response_time_ms, uptime_percentage,
-        total_checks, failed_checks, last_checked_at, user_email, metric_type
-      ) VALUES (?, ?, 'private_api', ?, ?, 'HEALTHY', 35.0, 100.0, 1, 0, ?, ?, ?)
+        total_checks, failed_checks, last_checked_at, user_email, metric_type, service_category
+      ) VALUES (?, ?, 'private_api', ?, ?, 'HEALTHY', 45.0, 100.0, 1, 0, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        target_url = excluded.target_url,
+        check_interval_seconds = excluded.check_interval_seconds,
+        last_checked_at = excluded.last_checked_at,
+        service_category = excluded.service_category
     `);
 
     for (const ep of endpoints) {
-      if (ep.endpoint) {
-        const serviceId = `priv_${ep.id || Math.random().toString(36).substring(2, 8)}`;
+      if (ep.endpoint && typeof ep.endpoint === 'string' && ep.endpoint.trim()) {
+        const serviceId = `priv_${id}_${ep.id || Math.random().toString(36).substring(2, 8)}`;
         try {
           insertMonitored.run(
             serviceId,
-            `${name}: ${ep.name || 'Private Probe'}`,
-            ep.endpoint,
+            ep.name || 'Private Probe',
+            ep.endpoint.trim(),
             ep.intervalSeconds || 15,
             now,
             userEmail.toLowerCase().trim(),
-            ep.id || 'latency'
+            ep.id || 'latency',
+            id
           );
-        } catch {
-          // Ignore duplicate IDs
+        } catch (insertErr) {
+          console.error('Failed to insert private monitored service:', insertErr);
         }
       }
     }
@@ -131,7 +138,6 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: 'Suite not found' }, { status: 404 });
     }
 
-    // Optional user security check
     if (userEmail && existing.user_email.toLowerCase() !== userEmail.toLowerCase()) {
       return NextResponse.json({ success: false, error: 'Unauthorized to modify this suite' }, { status: 403 });
     }
@@ -152,6 +158,66 @@ export async function PUT(req: Request) {
       JSON.stringify(endpoints),
       suiteId
     );
+
+    // Update or insert endpoints in monitored_services using in-place conflict updates
+    const now = new Date().toISOString();
+    const activeServiceIds = new Set<string>();
+
+    const upsertMonitored = db.prepare(`
+      INSERT INTO monitored_services (
+        id, name, target_type, target_url, check_interval_seconds,
+        current_status, latest_response_time_ms, uptime_percentage,
+        total_checks, failed_checks, last_checked_at, user_email, metric_type, service_category
+      ) VALUES (?, ?, 'private_api', ?, ?, 'HEALTHY', 45.0, 100.0, 1, 0, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        target_url = excluded.target_url,
+        check_interval_seconds = excluded.check_interval_seconds,
+        last_checked_at = excluded.last_checked_at,
+        service_category = excluded.service_category
+    `);
+
+    for (const ep of endpoints) {
+      if (ep.endpoint && typeof ep.endpoint === 'string' && ep.endpoint.trim()) {
+        const serviceId = `priv_${suiteId}_${ep.id || Math.random().toString(36).substring(2, 8)}`;
+        activeServiceIds.add(serviceId);
+        try {
+          upsertMonitored.run(
+            serviceId,
+            ep.name || 'Private Probe',
+            ep.endpoint.trim(),
+            ep.intervalSeconds || 15,
+            now,
+            userEmail?.toLowerCase()?.trim() || existing.user_email,
+            ep.id || 'latency',
+            suiteId
+          );
+        } catch (insertErr) {
+          console.error('Failed to update private monitored service:', insertErr);
+        }
+      }
+    }
+
+    // Safely prune any services that were removed from this suite
+    try {
+      const oldServices: any[] = db.prepare(
+        "SELECT id FROM monitored_services WHERE service_category = ? OR id LIKE 'priv_' || ? || '%'"
+      ).all(suiteId, suiteId);
+
+      for (const oldS of oldServices) {
+        if (!activeServiceIds.has(oldS.id)) {
+          // Delete child records in exact foreign-key dependency order
+          try { db.prepare('DELETE FROM service_notification_logs WHERE service_id = ?').run(oldS.id); } catch (_) {}
+          try { db.prepare('DELETE FROM service_state_transitions WHERE service_id = ?').run(oldS.id); } catch (_) {}
+          try { db.prepare('DELETE FROM service_probe_history WHERE service_id = ?').run(oldS.id); } catch (_) {}
+          try { db.prepare('DELETE FROM incident_alerts WHERE service_id = ?').run(oldS.id); } catch (_) {}
+          try { db.prepare('DELETE FROM metric_samples WHERE service_id = ?').run(oldS.id); } catch (_) {}
+          try { db.prepare('DELETE FROM monitored_services WHERE id = ?').run(oldS.id); } catch (_) {}
+        }
+      }
+    } catch (cleanErr) {
+      console.warn('Prune error in PUT:', cleanErr);
+    }
 
     return NextResponse.json({
       success: true,
@@ -183,11 +249,29 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized to delete this suite' }, { status: 403 });
     }
 
-    db.prepare('DELETE FROM private_api_suites WHERE id = ?').run(suiteId);
+    // Delete associated child records and monitored services in exact dependency order
+    try {
+      const suiteServices: any[] = db.prepare(
+        "SELECT id FROM monitored_services WHERE service_category = ? OR id LIKE 'priv_' || ? || '%'"
+      ).all(suiteId, suiteId);
+
+      for (const s of suiteServices) {
+        try { db.prepare('DELETE FROM service_notification_logs WHERE service_id = ?').run(s.id); } catch (_) {}
+        try { db.prepare('DELETE FROM service_state_transitions WHERE service_id = ?').run(s.id); } catch (_) {}
+        try { db.prepare('DELETE FROM service_probe_history WHERE service_id = ?').run(s.id); } catch (_) {}
+        try { db.prepare('DELETE FROM incident_alerts WHERE service_id = ?').run(s.id); } catch (_) {}
+        try { db.prepare('DELETE FROM metric_samples WHERE service_id = ?').run(s.id); } catch (_) {}
+        try { db.prepare('DELETE FROM monitored_services WHERE id = ?').run(s.id); } catch (_) {}
+      }
+      db.prepare('DELETE FROM private_api_suites WHERE id = ?').run(suiteId);
+    } catch (dbErr) {
+      console.error('Error during cascade delete:', dbErr);
+      db.prepare('DELETE FROM private_api_suites WHERE id = ?').run(suiteId);
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Private API suite removed.',
+      message: 'Private API suite and all associated targets removed.',
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

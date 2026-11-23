@@ -4,7 +4,7 @@ import { initializeObservatoryTables } from './initialize_observatory_tables';
 export interface MonitoredServiceRecord {
   id: string;
   name: string;
-  target_type: 'public_api' | 'system_process' | 'cloud_provider';
+  target_type: 'public_api' | 'system_process' | 'cloud_provider' | 'private_api';
   target_url: string;
   check_interval_seconds: number;
   current_status: 'HEALTHY' | 'UP' | 'DEGRADED' | 'DOWN' | 'UNSTABLE';
@@ -13,6 +13,9 @@ export interface MonitoredServiceRecord {
   total_checks: number;
   failed_checks: number;
   last_checked_at: string | null;
+  service_category?: string | null;
+  user_email?: string | null;
+  metric_type?: string | null;
   previous_status?: string;
   consecutive_failures?: number;
   consecutive_successes?: number;

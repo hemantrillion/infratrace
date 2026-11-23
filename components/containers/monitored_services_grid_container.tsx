@@ -14,7 +14,7 @@ export function MonitoredServicesGridContainer({ services }: MonitoredServicesGr
       {/* Centered Section Header in Arial */}
       <div className="text-center space-y-1">
         <h2 className="font-sans font-bold text-3xl md:text-4xl tracking-tight uppercase text-black">
-          TEST SUITE MONITORED TARGETS ({services.length})
+          PUBLIC API
         </h2>
         <p className="font-sans text-sm text-black opacity-60">
           Automated Continuous Health & Latency Telemetry Active

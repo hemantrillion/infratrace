@@ -42,8 +42,8 @@ export function ObservatoryGmailLayout({ onNavigateLanding }: ObservatoryGmailLa
   const [activeRailTab, setActiveRailTab] = useState<RailTab>('chat');
   const [demoSubView, setDemoSubView] = useState<DemoSubView>('dashboard');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
-  const [activeMetricsCategory, setActiveMetricsCategory] = useState<MetricsCategory>('Cloud');
-  const [activeMetricsSuboption, setActiveMetricsSuboption] = useState<string | null>('aws');
+  const [activeMetricsCategory, setActiveMetricsCategory] = useState<MetricsCategory>('Database');
+  const [activeMetricsSuboption, setActiveMetricsSuboption] = useState<string | null>('all');
   const [activeUserSection, setActiveUserSection] = useState<UserSection>('accounts');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -83,6 +83,15 @@ export function ObservatoryGmailLayout({ onNavigateLanding }: ObservatoryGmailLa
   const currentRoleConfig = visibilityConfigs[effectiveRole];
   const allowedA1Tabs = currentRoleConfig?.a1_tabs as RailTab[] | undefined;
   const allowedA2Elements = currentRoleConfig?.a2_elements as Record<string, string[]> | undefined;
+
+  useEffect(() => {
+    if (allowedA2Elements?.metrics && allowedA2Elements.metrics.length > 0) {
+      if (!allowedA2Elements.metrics.includes(activeMetricsCategory)) {
+        setActiveMetricsCategory(allowedA2Elements.metrics[0] as MetricsCategory);
+        setActiveMetricsSuboption('all');
+      }
+    }
+  }, [allowedA2Elements?.metrics, activeMetricsCategory]);
 
   // Browser History & Back button synchronization + Session sync
   useEffect(() => {
@@ -366,9 +375,7 @@ export function ObservatoryGmailLayout({ onNavigateLanding }: ObservatoryGmailLa
               setIsQuickSettingsOpen(false);
             }}
             isAccountMenuOpen={isAccountFlyoutOpen}
-            showFlexboxBorders={showFlexboxBorders}
-            onToggleFlexboxBorders={() => setShowFlexboxBorders((prev) => !prev)}
-            isSidebarOpen={isSidebarOpen}
+                        isSidebarOpen={isSidebarOpen}
             hasWallpaper={hasWallpaper}
             onNavigateLanding={onNavigateLanding}
             onNavigatePrivateApi={() => window.location.href = '/private-api'}
@@ -560,7 +567,7 @@ export function ObservatoryGmailLayout({ onNavigateLanding }: ObservatoryGmailLa
                 : ''
             } ${hasWallpaper ? 'bg-transparent' : 'bg-[#f8fafd]'}`}
           >
-            <GmailRightRail hasWallpaper={hasWallpaper} />
+            <GmailRightRail allowedIcons={allowedA2Elements?.side_rail || ['calendar']} hasWallpaper={hasWallpaper} />
           </div>
         </div>
       </div>

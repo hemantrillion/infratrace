@@ -102,41 +102,58 @@ function generatePoints(name: string, type: 'spike' | 'wave' | 'dual' | 'flat' |
 
 export function getCategoryMetadata(category: string): CategoryMeta {
   switch (category) {
-    case 'Service':
+    case 'Database':
       return {
-        id: 'Service',
-        title: 'Service & Application Telemetry',
-        subtitle: 'Core application endpoints, slot allocation, and transaction APIs.',
+        id: 'Database',
+        title: 'Database & Storage Telemetry',
+        subtitle: 'ACID booking transactions, slot allocation latency, and DDL schema migrations.',
         tabs: [
-          { id: 'all', label: 'All Services' },
-          { id: 'oq-ops', label: 'OQ Operations' },
-          { id: 'slots', label: 'Slot Engine' },
-          { id: 'bookings', label: 'Booking Engine' },
-          { id: 'integrations', label: 'Two-Way Integration' },
+          { id: 'all', label: 'All Database' },
+          { id: 'transactions', label: 'Transactions' },
+          { id: 'durability', label: 'Maintenance & Durability' },
         ],
       };
     case 'Queues':
       return {
         id: 'Queues',
-        title: 'Queue & Notification Telemetry',
-        subtitle: 'Live ticket generation, queue depth, station dispatch, and bilingual delay dispatch.',
+        title: 'Queue & Messaging Telemetry',
+        subtitle: 'Atomic token generation, queue backlog stats, operator dispatch, and notification delivery.',
         tabs: [
           { id: 'all', label: 'All Queues' },
-          { id: 'tokens', label: 'Ticket Generation' },
-          { id: 'stats', label: 'Queue Depth & Backlog' },
-          { id: 'station', label: 'Station Operator' },
-          { id: 'notices', label: 'Client Notices' },
+          { id: 'jobs', label: 'Queues & Jobs' },
         ],
       };
-    case 'Database':
+    case 'Security':
       return {
-        id: 'Database',
-        title: 'Database & Storage Telemetry',
-        subtitle: 'Connection pool saturation, sub-millisecond query execution, and Atlas/Prisma DDL schema migrations.',
+        id: 'Security',
+        title: 'Security & Authentication Telemetry',
+        subtitle: 'Application onboarding verification and HMAC-SHA256 token issuance.',
         tabs: [
-          { id: 'all', label: 'All Database' },
-          { id: 'pool', label: 'Connection Pool' },
-          { id: 'migrations', label: 'Schema Migrations' },
+          { id: 'all', label: 'All Security' },
+          { id: 'auth', label: 'Observatory Authentication' },
+        ],
+      };
+    case 'Service':
+      return {
+        id: 'Service',
+        title: 'Service & Dependency Telemetry',
+        subtitle: 'Third-party API dependencies and external foundation model gateways.',
+        tabs: [
+          { id: 'all', label: 'All Services' },
+          { id: 'dependencies', label: 'Dependencies (Third-Party)' },
+        ],
+      };
+    case 'Synthetic':
+      return {
+        id: 'Synthetic',
+        title: 'Synthetic Probes & Network Infrastructure',
+        subtitle: 'Geocoding lookups, map tile rendering, DNS over HTTPS, and TLS cryptographic handshakes.',
+        tabs: [
+          { id: 'all', label: 'All Synthetic' },
+          { id: 'latency', label: 'Latency' },
+          { id: 'payload', label: 'Payload & Throughput' },
+          { id: 'dns', label: 'DNS & Domains' },
+          { id: 'tls', label: 'TLS & Protocol' },
         ],
       };
     case 'Cloud':
@@ -158,59 +175,6 @@ export function getCategoryMetadata(category: string): CategoryMeta {
           { id: 'all', label: 'All Containers' },
           { id: 'docker', label: 'Docker' },
           { id: 'kubernetes', label: 'Kubernetes' },
-        ],
-      };
-    case 'Service':
-      return {
-        id: 'Service',
-        title: 'Service & Application Telemetry',
-        subtitle: 'Core OQ application endpoints, bilingual onboarding, slot allocation, and two-way integration APIs.',
-        tabs: [
-          { id: 'all', label: 'All Services' },
-          { id: 'oq-ops', label: 'OQ Operations' },
-          { id: 'ai-schema', label: 'AI & Schema' },
-          { id: 'integrations', label: 'Two-Way Integration' },
-        ],
-      };
-    case 'Synthetic':
-      return {
-        id: 'Synthetic',
-        title: 'Synthetic Probes & Map Infrastructure',
-        subtitle: 'OpenStreetMap Nominatim geocoding, tile server probes, and public benchmark endpoints.',
-        tabs: [
-          { id: 'all', label: 'All Synthetic' },
-          { id: 'maps', label: 'OpenStreetMap' },
-          { id: 'benchmarks', label: 'Public Benchmarks' },
-        ],
-      };
-    case 'Queues':
-      return {
-        id: 'Queues',
-        title: 'Queue & Notification Telemetry',
-        subtitle: 'Automated bilingual delay notice queue, cancellation dispatches, and delivery status.',
-        tabs: [
-          { id: 'all', label: 'All Queues' },
-          { id: 'notices', label: 'Client Notices & Backlog' },
-        ],
-      };
-    case 'Database':
-      return {
-        id: 'Database',
-        title: 'Database & Storage Telemetry',
-        subtitle: 'Database query execution time, connection pool saturation, and read/write error telemetry.',
-        tabs: [
-          { id: 'all', label: 'All Database' },
-          { id: 'db', label: 'Connection Pool & Queries' },
-        ],
-      };
-    case 'Security':
-      return {
-        id: 'Security',
-        title: 'Security, TLS & Authentication Telemetry',
-        subtitle: 'Direct SSL/TLS certificate expiry, 1.1.1.1 public DNS latency, Cloudflare edge, and CI/CD runs.',
-        tabs: [
-          { id: 'all', label: 'All Security' },
-          { id: 'edge', label: 'Edge, TLS & DNS' },
         ],
       };
     case 'Infrastructure':
@@ -241,90 +205,40 @@ export function getCategoryMetricGroups(category: string, activeTabId: string = 
   let filteredItems = items;
   const tabLower = activeTabId.toLowerCase();
 
-  if (category === 'Cloud') {
-    filteredItems = items.filter((item) => {
-      const p = item.parent_path.toLowerCase();
-      if (tabLower === 'aws') return p.includes('aws');
-      return true;
-    });
-  } else if (category === 'Containers' && tabLower !== 'all') {
-    if (tabLower === 'docker') {
+  if (tabLower !== 'all') {
+    if (tabLower === 'transactions') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('transaction'));
+    } else if (tabLower === 'durability') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('maintenance') || i.parent_path.toLowerCase().includes('durability'));
+    } else if (tabLower === 'jobs') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('queues & jobs') || i.parent_path.toLowerCase().includes('queue'));
+    } else if (tabLower === 'auth') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('authentication') || i.parent_path.toLowerCase().includes('auth'));
+    } else if (tabLower === 'dependencies') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('dependencies') || i.parent_path.toLowerCase().includes('third-party'));
+    } else if (tabLower === 'latency') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('latency'));
+    } else if (tabLower === 'payload') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('payload') || i.parent_path.toLowerCase().includes('throughput'));
+    } else if (tabLower === 'dns') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('dns'));
+    } else if (tabLower === 'tls') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('tls'));
+    } else if (tabLower === 'aws') {
+      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('aws'));
+    } else if (tabLower === 'docker') {
       filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('docker'));
     } else if (tabLower === 'kubernetes') {
       filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('kubernetes'));
     }
-  } else if (category === 'Service' && tabLower !== 'all') {
-    if (tabLower === 'oq-ops') {
-      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('oq operations'));
-    } else if (tabLower === 'ai-schema') {
-      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('ai & schema'));
-    } else if (tabLower === 'integrations') {
-      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('two-way integration'));
-    }
-  } else if (category === 'Synthetic' && tabLower !== 'all') {
-    if (tabLower === 'maps') {
-      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('openstreetmap'));
-    } else if (tabLower === 'benchmarks') {
-      filteredItems = items.filter((i) => i.parent_path.toLowerCase().includes('public benchmarks'));
-    }
-  } else if (category === 'Queues' && tabLower !== 'all') {
-    filteredItems = items;
-  } else if (category === 'Database' && tabLower !== 'all') {
-    filteredItems = items;
-  } else if (category === 'Security' && tabLower !== 'all') {
-    filteredItems = items;
-  } else if (category === 'Infrastructure' && tabLower !== 'all') {
-    filteredItems = items;
   }
 
-  // Group items by sub-group
+  // Group items by subcategory in parent_path
   const groupMap = new Map<string, MetricCardData[]>();
 
   filteredItems.forEach((raw, idx) => {
     const parts = raw.parent_path.split(sep).map((p) => p.trim());
-    let groupTitle = 'General Purpose Telemetry';
-
-    if (raw.is_api_endpoint) {
-      if (category === 'Cloud') {
-        groupTitle = 'AWS Cloud Compute, Storage & Infrastructure APIs';
-      } else if (category === 'Containers') {
-        groupTitle = 'Container & Cluster Orchestration APIs';
-      } else if (category === 'Service') {
-        groupTitle = 'OQ Business, Operational & Schema APIs';
-      } else if (category === 'Queues') {
-        groupTitle = 'Client Notice & Delay Notification APIs';
-      } else if (category === 'Database') {
-        groupTitle = 'OQ Database Telemetry APIs';
-      } else if (category === 'Security') {
-        groupTitle = 'Edge, Network & Security Verification APIs';
-      } else if (category === 'Synthetic') {
-        groupTitle = 'Free Online Maps & Public Benchmark APIs';
-      } else if (category === 'Infrastructure') {
-        groupTitle = 'Controlled Service & Chaos Simulation APIs';
-      } else {
-        groupTitle = parts[1] || parts[0] || 'API Endpoints';
-      }
-    } else if (category === 'Cloud') {
-      const rawSub = parts[2] || parts[1] || 'General';
-      const lowerSub = rawSub.toLowerCase();
-      if (lowerSub.includes('ec2') || lowerSub.includes('compute') || lowerSub.includes('vm') || lowerSub.includes('virtual')) {
-        groupTitle = 'Compute & Utilization';
-      } else if (lowerSub.includes('s3') || lowerSub.includes('storage') || lowerSub.includes('ebs') || lowerSub.includes('blob')) {
-        groupTitle = 'Storage & I/O';
-      } else if (lowerSub.includes('lambda') || lowerSub.includes('api gateway') || lowerSub.includes('rds') || lowerSub.includes('sql') || lowerSub.includes('app service')) {
-        groupTitle = 'Requests & Latency';
-      } else if (lowerSub.includes('cost') || lowerSub.includes('health') || lowerSub.includes('quota') || lowerSub.includes('error')) {
-        groupTitle = 'Errors & Cost';
-      } else if (lowerSub.includes('cdn') || lowerSub.includes('network') || lowerSub.includes('gateway') || lowerSub.includes('front door')) {
-        groupTitle = 'Networking & CDN';
-      } else if (lowerSub.includes('queue') || lowerSub.includes('sqs') || lowerSub.includes('sns') || lowerSub.includes('bus')) {
-        groupTitle = 'Queues & Messaging';
-      } else {
-        groupTitle = rawSub;
-      }
-    } else {
-      groupTitle = parts[1] || parts[0] || 'General Telemetry';
-    }
+    const groupTitle = parts[1] || parts[0] || 'General Telemetry';
 
     if (!groupMap.has(groupTitle)) {
       groupMap.set(groupTitle, []);
