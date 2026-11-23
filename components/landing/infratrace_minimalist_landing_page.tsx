@@ -316,32 +316,6 @@ export function InfratraceMinimalistLandingPage({
                   >
                     Demo
                   </button>
-
-                  {/* Button 3: Direct Admin Access */}
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const res = await fetch('/api/auth/signin', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ email: 'jai18hemant334@gmail.com' }),
-                        });
-                        const data = await res.json();
-                        if (data.success && data.user) {
-                          setActiveAccount(data.user);
-                          setCurrentUser(data.user);
-                          handleLaunchEnvironment('/console');
-                          return;
-                        }
-                      } catch (_) {}
-                      handleLaunchEnvironment('/console');
-                    }}
-                    className="px-4 py-2.5 rounded-full border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-[#0b57d0] text-xs sm:text-sm font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center gap-1.5 select-none"
-                    title="1-Click sign in as jai18hemant334@gmail.com (Super Admin)"
-                  >
-                    <span>⚡ Quick Admin Access</span>
-                  </button>
                 </div>
 
                 {/* Profile Avatar & Sign Out */}
